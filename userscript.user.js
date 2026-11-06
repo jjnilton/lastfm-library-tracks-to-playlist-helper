@@ -38,12 +38,19 @@
       border-radius: 3px;
       box-shadow: 0 3px 9px 0 rgba(0, 0, 0, .2);
     }
+    .title {
+      /* last.fm's .content-form legend */
+      font-size: 18px;
+      font-weight: 700;
+      line-height: 24px;
+      margin-bottom: 0.5em;
+    }
     input[type="text"] {
       width: 100%;
       box-sizing: border-box;
       height: 40px;
       padding: 6px 12px;
-      margin-top: 0.25em;
+      margin: 0.5em 0;
       background: #fff;
       border: 2px solid #eee;
       border-radius: 3px;
@@ -90,6 +97,9 @@
     }
     .btn-secondary:hover { background: #e3e3e3; }
     .btn-secondary:active { background: #d7d7d7; }
+    /* scoped so the trigger button in the list keeps its place */
+    dialog .btn-primary,
+    dialog .btn-secondary { margin: 0.5em 0; }
     progress { width: 100%; }
   `;
 
@@ -372,7 +382,7 @@
     const dialogElement = /* HTML */`
 <dialog id="dialog">
     <div class="form-panel">
-    <div>Last.fm Playlist Helper</div>
+    <div class="title">Last.fm Playlist Helper</div>
     <form id="create-playlist-form">
       <label style="display: block" for="playlist-name">
         Playlist name
@@ -399,7 +409,7 @@
     </form>
   </div>
       <div class="success-panel" hidden>
-      <div>Last.fm Playlist Helper</div>
+      <div class="title">Last.fm Playlist Helper</div>
       <p>Success!</p>
       <p>Playlist <strong><span class="playlist-name"></span></strong> created: <span class="playlist-url"><</span></p>
       </div>
