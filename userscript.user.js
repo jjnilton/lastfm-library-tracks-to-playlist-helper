@@ -25,29 +25,71 @@
   // document.querySelector cannot see inside a shadow root, refs are kept instead.
   const ui = {};
 
-  // Page CSS cannot reach the shadow root.
-  // Browser defaults and inherited values from <body> still apply.
+  // Page CSS cannot reach the shadow root, so we copy last.fm's own values.
+  // Inherited font, size and color from <body> still cross the boundary.
   const DIALOG_CSS = /* css */`
     dialog {
       /* centering and ::backdrop come from the browser */
       padding: 1.5em;
       min-width: 24em;
       max-width: min(90vw, 40em);
-      border: 1px solid #d0d0d0;
-      border-radius: 6px;
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 3px;
+      box-shadow: 0 3px 9px 0 rgba(0, 0, 0, .2);
     }
     input[type="text"] {
       width: 100%;
       box-sizing: border-box;
-      padding: 0.4em;
+      height: 40px;
+      padding: 6px 12px;
       margin-top: 0.25em;
+      background: #fff;
+      border: 2px solid #eee;
+      border-radius: 3px;
+      color: #222;
+      font: inherit;
+    }
+    input[type="text"]::placeholder { color: #999; }
+    input[type="text"]:hover { border-color: #e3e3e3; }
+    input[type="text"]:focus {
+      border-color: #e3e3e3;
+      box-shadow: 0 3px 9px 0 #eee;
+      outline: none;
     }
     button {
       /* inherited values do cross the boundary, so this keeps last.fm's font */
       font: inherit;
-      padding: 0.4em 1em;
       cursor: pointer;
     }
+    /* last.fm's .btn-primary and .btn-secondary */
+    .btn-primary,
+    .btn-secondary {
+      border: none;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .4px;
+      min-height: 40px;
+      min-width: 80px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .btn-primary {
+      background: #d92323;
+      color: #fff;
+      line-height: 21px;
+      padding: 9px 20px 10px;
+    }
+    .btn-primary:hover { background: #f71414; }
+    .btn-secondary {
+      background: #eee;
+      color: #222;
+      line-height: 28px;
+      padding: 5px 15px 6px;
+    }
+    .btn-secondary:hover { background: #e3e3e3; }
+    .btn-secondary:active { background: #d7d7d7; }
     progress { width: 100%; }
   `;
 
@@ -305,14 +347,14 @@
     // becomes text. No click listener when Invokers exists: browser handles it.
     appendToRoot(ui.root, `
       <style>${DIALOG_CSS}</style>
-      <button class="create-playlist"
+      <button class="create-playlist btn-primary"
               commandfor="dialog"
               command="show-modal">Create playlist</button>
     `);
 
     li.appendChild(host);
     const metadataList = document.querySelector('ul.metadata-list');
-    // Clear out leftovers from an earlier render before adding stuff agian.
+    // Clear out leftovers from an earlier render before adding ours.
     removeLeftovers(metadataList);
     metadataList.appendChild(li);
 
@@ -335,12 +377,12 @@
       <label style="display: block" for="playlist-name">
         Playlist name
       </label>
-      <input style="display: block" name="playlist-name" placeholder="Playlist name" />
+      <input style="display: block" type="text" name="playlist-name" placeholder="Playlist name" />
       <label style="display: block" for="playlist-description">
         Playlist description
       </label>
-      <input style="display: block" name="playlist-description" placeholder="Playlist description" />
-      <button id="confirm-create-playlist">
+      <input style="display: block" type="text" name="playlist-description" placeholder="Playlist description" />
+      <button id="confirm-create-playlist" class="btn-primary">
         Start
     </button>
     <input id="preserve-order" name="preserve-order" type="checkbox" />
@@ -361,7 +403,7 @@
       <p>Success!</p>
       <p>Playlist <strong><span class="playlist-name"></span></strong> created: <span class="playlist-url"><</span></p>
       </div>
-  <button type="button" commandFor="dialog" command="close">
+  <button type="button" class="btn-secondary" commandFor="dialog" command="close">
     Close
   </button>
 </dialog>
