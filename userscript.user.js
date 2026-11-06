@@ -21,17 +21,129 @@
 
   const [, , username] = new URL(location.href).pathname.split('/');
 
+  // UI elements, looked up once at mount time.
+  // document.querySelector cannot see inside a shadow root, refs are kept instead.
+  const ui = {};
+
+  // Page CSS cannot reach the shadow root.
+  // Browser defaults and inherited values from <body> still apply.
+  const DIALOG_CSS = /* css */`
+    dialog {
+      /* centering and ::backdrop come from the browser */
+      padding: 1.5em;
+      min-width: 24em;
+      max-width: min(90vw, 40em);
+      border: 1px solid #d0d0d0;
+      border-radius: 6px;
+    }
+    input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.4em;
+      margin-top: 0.25em;
+    }
+    button {
+      /* inherited values do cross the boundary, so this keeps last.fm's font */
+      font: inherit;
+      padding: 0.4em 1em;
+      cursor: pointer;
+    }
+    progress { width: 100%; }
+  `;
+
+  // Check if the element supports the Invoker Commands API.
+  const SUPPORTS_INVOKERS = 'commandForElement' in HTMLButtonElement.prototype;
+
+  // Only some elements accept a shadow root (span yes, li no). One root
+  // holds button and dialog, which is what lets commandfor resolve.
+  const mount = (host) => host.attachShadow({ mode: 'open' });
+
+  // Add markup to a root without changing what is already there.
+  // innerHTML += would re-parse everything and recreate the button.
+  const appendToRoot = (root, html) => {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    root.appendChild(tpl.content);
+  };
+
+  // Query inside the shadow root, where document.querySelector cannot reach.
+  const $ = (sel) => ui.root.querySelector(sel);
+
+  // <li> if it is mounted, else null. Used by main()'s guard and by the
+  // watcher. last.fm's own <li>s have no shadow root, so they never match.
+  const findMountedLi = () =>
+    Array.from(document.querySelectorAll('ul.metadata-list > li'))
+      .find((li) => Array.from(li.children)
+        .some((child) => child.shadowRoot?.querySelector('.create-playlist')))
+      ?? null;
+
+  // last.fm re-parses the list HTML, which kills shadow roots, so our old
+  // <li> survives empty. Match by shape: bare <span>, no shadow root, no text.
+  const removeLeftovers = (list) => {
+    Array.from(list.children).filter((li) =>
+      li.className === 'metadata-item' &&
+      li.children.length === 1 &&
+      li.firstElementChild.localName === 'span' &&
+      li.firstElementChild.attributes.length === 0 &&
+      !li.firstElementChild.shadowRoot &&
+      li.textContent === ''
+    ).forEach((leftover) => leftover.remove());
+  };
+
   function main() {
-    console.log('Userscript running!');
-    // TODO: improve this
-    const urlList = getUrls();
-    const tracks = getTracksFromUrlList(urlList)
+    // main() can run twice, and each run would add another button.
+    // DOM needs to be checked because a second run has its own empty `ui` to look at.
+    if (findMountedLi()) return;
+
+    mountUI();
+    startWatcher();
+  }
+
+  // Put the UI on the page. The watcher calls this again after last.fm
+  // destroys the <li>. appendButton() must run first to create the root.
+  const mountUI = () => {
+    const tracks = getTracksFromUrlList(getUrls());
 
     appendButton();
     appendModal(tracks);
-    registerEvents();
   }
 
+  // last.fm rebuilds the list after load, which destroys the <li>. Watch the
+  // whole document, since the list itself may be replaced too.
+  const startWatcher = () => {
+    let rebuildTimer = null;
+    let waitRetries = 0;
+    const MAX_WAIT_RETRIES = 30; // to give up after N polls
+
+    const scheduleRebuild = (delay = 0) => {
+      if (rebuildTimer !== null) return; // one rebuild per batch
+      rebuildTimer = setTimeout(() => {
+        rebuildTimer = null;
+        // Re-check: the rebuild may already have happened.
+        if (findMountedLi()) { waitRetries = 0; return; }
+
+        // No list yet (maybe page still loading)
+        if (!document.querySelector('ul.metadata-list')) {
+          if (waitRetries < MAX_WAIT_RETRIES) {
+            waitRetries += 1;
+            scheduleRebuild(1000);
+          }
+          return;
+        }
+
+        mountUI(); // before the observer's next check
+      }, delay);
+    };
+
+    new MutationObserver((records) => {
+      // Only a removal can destroy the userscript, so skip anything else.
+      if (!records.some((r) => r.removedNodes.length > 0)) return;
+      if (findMountedLi()) return;
+      scheduleRebuild();
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  };
+
+  // All track links on the page, as absolute URLs.
   const getUrls = () => {
     const urlList = [];
     document.querySelectorAll(".chartlist-name > a").forEach((i) => { urlList.push(i.href) })
@@ -39,6 +151,7 @@
     return urlList;
   }
 
+  // "/music/Artist/_/Title" becomes { artist, title }
   const getTracksFromUrlList = (urlList) => {
     const trackList = urlList.map(i => {
       const path = i.split('/music/')[1];
@@ -58,8 +171,6 @@
 
   const createEmptyPlaylist = async () => {
     const csrfMiddlewareToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const playlistsEndpont = '';
-    const referrer = '';
 
     const res = await fetch(`https://www.last.fm/user/${username}/playlists`, {
       "credentials": "include",
@@ -79,7 +190,8 @@
       throw new Error('Could not create a new playlist.');
     }
 
-    document.querySelector('.custom__playlist-url').innerHTML = `<a href="${res.url}" target="_blank">${res.url}</a>`
+    // The success panel's playlist link.
+    ui.playlistUrl.innerHTML = `<a href="${res.url}" target="_blank">${res.url}</a>`
     const playlistId = new URL(res.url).pathname.split('/').at(-1);
 
     return playlistId
@@ -87,18 +199,11 @@
 
   const renamePlaylist = async (playlistId, playlistName, playlistDescription) => {
     const csrfMiddlewareToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const playlistsEndpont = '';
-
-    console.log(playlistName)
-    console.log(playlistDescription)
 
     const newPlaylistName = playlistName || new Date().toISOString() //TODO: improve the default name
     const newPlaylistDescription = playlistDescription || 'Generated by Last.fm Playlist Helper';
 
-    console.log(newPlaylistName)
-    console.log(newPlaylistDescription)
-
-    const res = await fetch(`https://www.last.fm/user/${username}/playlists/${playlistId}`, {
+    await fetch(`https://www.last.fm/user/${username}/playlists/${playlistId}`, {
       "credentials": "include",
       "headers": {
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -116,25 +221,12 @@
       "method": "POST",
     });
 
-    document.querySelector('.custom__playlist-name').innerText = newPlaylistName
-
-    console.log('oi')
-    console.log(res);
+    // The playlist name shown in the success panel.
+    ui.playlistName.innerText = newPlaylistName
   }
 
   const addTrackToPlaylist = async (playlistId, trackObj) => {
     const csrfMiddlewareToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const playlistsEndpont = '';
-
-    console.log(`adding track ${trackObj.artist} - ${trackObj.title}`)
-    console.log(`csrfmiddlewaretoken=${csrfMiddlewareToken}&track=${trackObj.title}&artist=${trackObj.artist}&ajax=1"`);
-
-    console.log(new URLSearchParams({
-        csrfmiddlewaretoken: csrfMiddlewareToken,
-        track: trackObj.title,
-        artist: trackObj.artist,
-        ajax: 1
-    }).toString());
 
     await fetch(`https://www.last.fm/user/${username}/playlists/${playlistId}/entries`, {
       "credentials": "include",
@@ -154,16 +246,10 @@
   }
 
   const doTheThing = async (playlistName, playlistDescription, preserveOrder) => {
-    let cancelled = false
-
     // try catch this
-    const urlList = getUrls();
-    const tracks = getTracksFromUrlList(urlList)
+    const tracks = getTracksFromUrlList(getUrls());
 
     const playlistId = await createEmptyPlaylist();
-    console.log(playlistName)
-    console.log(playlistDescription)
-
     await renamePlaylist(playlistId, playlistName, playlistDescription);
 
     let processedTracks = 0;
@@ -172,156 +258,164 @@
       if (preserveOrder) { // TODO: progress is messed up when false
         await new Promise(resolve => setTimeout(resolve, 100)) 
       }
-      if (cancelled) { //modal is closed
-        break
-      }
       processedTracks += 1;
-      document.querySelector('.custom__processed-tracks').innerText = processedTracks
-      document.querySelector('#custom__create-playlist-form progress').value = processedTracks
-      document.querySelector('#custom__create-playlist-form progress .custom__progress_value').innerText = (processedTracks * 100)/tracks.length
-      document.querySelector('.custom__current_track').innerText = `${track.artist} - ${track.title}`.replaceAll('+', ' ') // replace the + with space // newline maybe
+
+      ui.processed.innerText = processedTracks                       // "(N/total)"
+      ui.progress.value = processedTracks                            // progress bar
+      ui.progressValue.innerText = (processedTracks * 100)/tracks.length // percent
+      ui.currentTrack.innerText = `${track.artist} - ${track.title}`.replaceAll('+', ' ')
     }
 
-    // success screen
-    // reset form
-    document.querySelector('#custom__create-playlist-form').reset()
-    // document.querySelector('#custom__dialog').close()
-    document.querySelector('#custom__dialog .diag__form').hidden = true
-    document.querySelector('#custom__dialog .diag__success').hidden = false
-    document.querySelector('.custom__current_track').innerText = 'Completed.'
+    // Done: show the success panel.
+    ui.form.reset()
+    ui.panelForm.hidden = true     // hide the form
+    ui.panelSuccess.hidden = false // show the success panel
+    ui.currentTrack.innerText = 'Completed.'
   }
 
+  // Reset the dialog every time it opens, from whichever path opened it.
+  const resetDialogState = () => {
+    ui.panelForm.hidden = false     // show the form
+    ui.panelSuccess.hidden = true   // hide the success panel
+    ui.currentTrack.innerText = 'Ready to process tracks.'
+    ui.progress.value = 0
+    ui.processed.innerText = '0'
+    ui.form.querySelectorAll('button, input').forEach(e => {
+      e.disabled = false;
+    })
+  };
+
   const appendButton = () => {
+    // The <li> stays in last.fm's light DOM so last.fm's .metadata-item styling
+    // applies to it. Everything the user script build goes in the shadow root below.
     const li = document.createElement('li');
     li.className = 'metadata-item';
 
-    const button = document.createElement('button');
-    button.className = 'custom__create-playlist';
-    button.textContent = 'Create playlist';
-    button.setAttribute('commandfor', 'custom__dialog');
-    button.setAttribute('command', 'show-modal');
+    // last.fm floats .metadata-item left, so the user script element x was the sum of every
+    // float ahead (340px of drift). Right fixes that and holds our spot.
+    li.style.float = 'right';
 
-    li.appendChild(button);
-    document.querySelector('ul.metadata-list').appendChild(li);
+    // attachShadow() only allows certain tags: <span> yes, <li> no.
+    const host = document.createElement('span');
 
-    document.addEventListener('click', (event) => {
-      const button = event.target.closest('.custom__create-playlist'); // TODO: this way of registering events is too agressive
+    // One root for both button and dialog, so commandfor can resolve.
+    ui.root = mount(host);
 
-      console.log(button)
+    // Style and trigger button. appendToRoot() because raw CSS in innerHTML
+    // becomes text. No click listener when Invokers exists: browser handles it.
+    appendToRoot(ui.root, `
+      <style>${DIALOG_CSS}</style>
+      <button class="create-playlist"
+              commandfor="dialog"
+              command="show-modal">Create playlist</button>
+    `);
 
-      if (!button) return;
+    li.appendChild(host);
+    const metadataList = document.querySelector('ul.metadata-list');
+    // Clear out leftovers from an earlier render before adding stuff agian.
+    removeLeftovers(metadataList);
+    metadataList.appendChild(li);
 
-      console.log('Create playlist button clicked');
-      console.log('resetting modal');
-      console.log(document.querySelector('#custom__dialog .custom__progress_value'));
-
-      document.querySelector('#custom__dialog .diag__form').hidden = false
-      document.querySelector('#custom__dialog .diag__success').hidden = true
-      document.querySelector('.custom__current_track').innerText = 'Ready to process tracks.'
-      document.querySelector('#custom__dialog progress').value = 0
-      document.querySelector('#custom__dialog .custom__processed-tracks').innerText = '0'
-      document.querySelector('span.custom__processed-tracks').innerText = '0'
-      // not sure if needed
-       document.querySelector('form#custom__create-playlist-form').querySelectorAll('button, input').forEach(e => {
-        e.disabled = false;
-      })
-    });
+    // Older browsers without the Invoker Commands API: open the dialog manually.
+    // Only one path may ever run, or showModal() throws.
+    if (!SUPPORTS_INVOKERS) {
+      ui.root.querySelector('.create-playlist').addEventListener('click', () => {
+        resetDialogState();
+        ui.dialog.showModal();
+      });
+    }
   };
 
-  const registerEvents = () => {
-    // TODO: avoid event delegation
-    // TODO: gather elements here
-    const preserveOrderInfoEl = document.querySelector('.custom__preserve-order-info');
-
-    preserveOrderInfoEl.addEventListener('mouseover', (event) => {
-      console.log('mouseover');
-    })
-  }
-
   const appendModal = (trackList) => {
-    // use dialog
-    // prefill name and description
-    // show the progress
-    // confirm button
-    // playlist link
-    // export to spotify
-
-    console.log('appending modal')
-
     const dialogElement = /* HTML */`
-<dialog id="custom__dialog">
-    <div class="diag__form">
+<dialog id="dialog">
+    <div class="form-panel">
     <div>Last.fm Playlist Helper</div>
-    <form id="custom__create-playlist-form">
-      <label style="display: block" for="custom__playlist-name">
+    <form id="create-playlist-form">
+      <label style="display: block" for="playlist-name">
         Playlist name
       </label>
-      <input style="display: block" name="custom__playlist-name" placeholder="Playlist name" />
-      <label style="display: block" for="custom__playlist-description">
+      <input style="display: block" name="playlist-name" placeholder="Playlist name" />
+      <label style="display: block" for="playlist-description">
         Playlist description
       </label>
-      <input style="display: block" name="custom__playlist-description" placeholder="Playlist description" />
-      <button id="custom__confirm-create-playlist">
+      <input style="display: block" name="playlist-description" placeholder="Playlist description" />
+      <button id="confirm-create-playlist">
         Start
     </button>
-    <input id="custom__preserve-order" name="custom__preserve-order" type="checkbox" />
-    <label for="custom__preserve-order">Preserve order</label> <span class="custom__preserve-order-info">[?]</span>
+    <input id="preserve-order" name="preserve-order" type="checkbox" />
+    <label for="preserve-order">Preserve order</label> <span class="preserve-order-info">[?]</span>
       <label style="display: block">
-    <span class="custom__current_track"></span>
+    <span class="current-track"></span>
     </label>
     <div style="display:flex; gap: 0.5em">
       <progress max="${trackList.length}" value="0">
-      <span class="custom__progress_value">0</span>%
+      <span class="progress-value">0</span>%
 
-      </progress><span>(<span class="custom__processed-tracks">0</span>/${trackList.length})</span>
+      </progress><span>(<span class="processed-tracks">0</span>/${trackList.length})</span>
       </div>
     </form>
   </div>
-      <div class="diag__success" hidden>
+      <div class="success-panel" hidden>
       <div>Last.fm Playlist Helper</div>
       <p>Success!</p>
-      <p>Playlist <strong><span class="custom__playlist-name"></span></strong> created: <span class="custom__playlist-url"><</span></p>
+      <p>Playlist <strong><span class="playlist-name"></span></strong> created: <span class="playlist-url"><</span></p>
       </div>
-  <button type="button" commandFor="custom__dialog" command="close">
+  <button type="button" commandFor="dialog" command="close">
     Close
   </button>
-</dialog>;
+</dialog>
 `
-    document.addEventListener('click', (event) => {
-      const button = event.target.closest('#custom__confirm-create-playlist');
+    // Same shadow root as the button, so both commandfor refs resolve.
+    // Template fragment, not innerHTML +=, which would rebuild the root.
+    appendToRoot(ui.root, dialogElement);
 
-      console.log(button);
+    // Our elements, by the markup they came from.
+    ui.dialog        = $('#dialog')
+    ui.form          = $('#create-playlist-form')
+    ui.panelForm     = $('.form-panel')
+    ui.panelSuccess  = $('.success-panel')
+    ui.currentTrack  = $('.current-track')
+    ui.progress      = $('#create-playlist-form progress')
+    ui.progressValue = $('.progress-value')
+    ui.processed     = $('.processed-tracks')
+    ui.playlistName  = $('.playlist-name')
+    ui.playlistUrl   = $('.playlist-url')
 
-      if (!button) return;
-      event.preventDefault();
+    // The browser fires `command` on the dialog just before it opens, which
+    // is the reset hook. The fallback path resets from the button instead.
+    ui.dialog.addEventListener('command', (event) => {
+      if (event.command !== 'show-modal') return;
+      resetDialogState();
+    });
 
-      console.log('Confirm create playlist clicked!');
+    // Close button, for browsers without the Invoker Commands API.
+    if (!SUPPORTS_INVOKERS) {
+      ui.dialog.querySelector('button[command="close"]')
+        .addEventListener('click', () => ui.dialog.close());
+    }
 
-      const form = document.querySelector('form#custom__create-playlist-form');
+    // `submit` not `click`: a click inside a shadow root reaches document
+    // retargeted to the host, so .closest() misses it. Enter also fires submit.
+    ui.form.addEventListener('submit', (event) => {
+      event.preventDefault(); // stop the page reloading
 
-      const formData = new FormData(form)
+      const formData = new FormData(ui.form)
 
-      const playlistName = formData.get('custom__playlist-name');
-      const playlistDescription = formData.get('custom__playlist-description');
+      const playlistName = formData.get('playlist-name');
+      const playlistDescription = formData.get('playlist-description');
 
-      const preserveOrder = formData.get('custom__preserve-order') === true;
+      // KNOWN BUG, left as is: FormData returns 'on' for a checked box and
+      // never `true`, so this is always false. Fix: `=== 'on'`.
+      const preserveOrder = formData.get('preserve-order') === true;
 
-      console.log('Playlist name:', playlistName);
-      console.log('Playlist description:', playlistDescription);
-      console.log('Preserve order:', preserveOrder);
-
-      document.querySelector('.custom__current_track').innerText = 'Starting...'
+      ui.currentTrack.innerText = 'Starting...'
       doTheThing(playlistName, playlistDescription, preserveOrder);
 
-      form.querySelectorAll('button, input').forEach(e => {
+      ui.form.querySelectorAll('button, input').forEach(e => {
         e.disabled = true;
       })
-
-      console.log(Object.fromEntries(formData))
     })
-
-    //trustedhtml?
-    document.querySelector('body').insertAdjacentHTML('beforeend', dialogElement)
   }
 
   if (document.readyState === 'loading') {
