@@ -278,7 +278,7 @@
 
     const PLAYLIST_CREATED = res.redirected;
     if (false === PLAYLIST_CREATED) {
-      alert('Could not create a new playlist.');
+      alert('Could not create a new playlist. Check if you reached the playlist amount limit in the Playlists page.');
 
       throw new Error('Could not create a new playlist.');
     }
@@ -378,6 +378,7 @@
     ui.panelSuccess.hidden = true   // hide the success panel
     ui.currentTrack.innerText = 'Ready to process tracks.'
     ui.progress.value = 0
+    ui.progressValue.innerText = '0'
     ui.processed.innerText = '0'
     ui.form.querySelectorAll('button, input').forEach(e => {
       e.disabled = false;
@@ -519,9 +520,15 @@
       ui.form.querySelectorAll('button, input').forEach(e => {
         e.disabled = true;
       })
-      doTheThing(playlistName, playlistDescription, preserveOrder).finally(() => {
-        running = false;
-      });
+      doTheThing(playlistName, playlistDescription, preserveOrder)
+        .catch(() => {
+          // Failed before finishing: put the dialog back so the user can retry.
+          running = false;
+          resetDialogState();
+        })
+        .finally(() => {
+          running = false;
+        });
     })
 
     // A rebuild while a run is going must keep the controls disabled.
