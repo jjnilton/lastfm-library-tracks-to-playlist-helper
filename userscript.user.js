@@ -21,6 +21,8 @@
 
   const [, , username] = new URL(location.href).pathname.split('/');
 
+  const LASTFM_PLAYLIST_URL = `https://www.last.fm/user/${username}/playlists`;
+
   // UI elements, looked up once at mount time.
   // document.querySelector cannot see inside a shadow root, refs are kept instead.
   const ui = {};
@@ -224,13 +226,13 @@
   const createEmptyPlaylist = async () => {
     const csrfMiddlewareToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-    const res = await fetch(`https://www.last.fm/user/${username}/playlists`, {
+    const res = await fetch(LASTFM_PLAYLIST_URL, {
       "credentials": "include",
       "headers": {
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         "X-Requested-With": "XMLHttpRequest",
       },
-      "referrer": `https://www.last.fm/user/${username}/playlists/create`, //TODO: test if this is really needed
+      "referrer": `${LASTFM_PLAYLIST_URL}/create`, //TODO: test if this is really needed
       "body": new URLSearchParams({csrfmiddlewaretoken: csrfMiddlewareToken}),
       "method": "POST"
     });
@@ -259,13 +261,13 @@
     const newPlaylistName = playlistName || DEFAULT_NAME;
     const newPlaylistDescription = playlistDescription || DEFAULT_DESCRIPTION;
 
-    await fetch(`https://www.last.fm/user/${username}/playlists/${playlistId}`, {
+    await fetch(`${LASTFM_PLAYLIST_URL}/${playlistId}`, {
       "credentials": "include",
       "headers": {
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         "X-Requested-With": "XMLHttpRequest",
       },
-      "referrer": `https://www.last.fm/user/${username}/playlists/${playlistId}`,
+      "referrer": `${LASTFM_PLAYLIST_URL}/${playlistId}`,
       "body": new URLSearchParams(
         {
           title: newPlaylistName,
@@ -284,13 +286,13 @@
   const addTrackToPlaylist = async (playlistId, trackObj) => {
     const csrfMiddlewareToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-    await fetch(`https://www.last.fm/user/${username}/playlists/${playlistId}/entries`, {
+    await fetch(`${LASTFM_PLAYLIST_URL}/${playlistId}/entries`, {
       "credentials": "include",
       "headers": {
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         "X-Requested-With": "XMLHttpRequest",
       },
-      "referrer": `https://www.last.fm/user/${username}/playlists/${playlistId}`,
+      "referrer": `${LASTFM_PLAYLIST_URL}/${playlistId}`,
       "body": new URLSearchParams({
         csrfmiddlewaretoken: csrfMiddlewareToken,
         track: trackObj.title,
@@ -391,7 +393,7 @@
       <label style="display: block" for="playlist-name">
         Playlist name
       </label>
-      <input style="display: block" type="text" name="playlist-name" placeholder="${defaultPlaylistName()}" />
+      <input style="display: block" type="text" name="playlist-name" placeholder="${DEFAULT_NAME}" />
       <label style="display: block" for="playlist-description">
         Playlist description
       </label>
