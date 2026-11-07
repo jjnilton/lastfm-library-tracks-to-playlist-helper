@@ -87,6 +87,12 @@
       padding: 9px 20px 10px;
     }
     .btn-primary:hover { background: #f71414; }
+    /* Disabled controls must not look clickable. */
+    .btn-primary:disabled {
+      background: #eee;
+      color: #999;
+      cursor: not-allowed;
+    }
     .btn-secondary {
       background: #eee;
       color: #222;
