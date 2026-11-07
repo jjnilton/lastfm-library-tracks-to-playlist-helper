@@ -62,6 +62,18 @@
       box-shadow: 0 3px 9px 0 #eee;
       outline: none;
     }
+    /* Start and preserve order share a row, so the hint lines up under the box. */
+    .preserve-order-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    /* Muted hint under the preserve order checkbox. */
+    .preserve-order-info {
+      color: #666;
+      font-size: 12px;
+      margin-top: 2px;
+    }
     button {
       /* inherited values do cross the boundary, so this keeps last.fm's font */
       font: inherit;
@@ -422,11 +434,16 @@
         Playlist description
       </label>
       <input style="display: block" type="text" name="playlist-description" placeholder="${DEFAULT_DESCRIPTION}" />
-      <button id="confirm-create-playlist" class="btn-primary">
-        Start
-    </button>
-    <input id="preserve-order" name="preserve-order" type="checkbox" />
-    <label for="preserve-order">Preserve order</label> <span class="preserve-order-info">[?]</span>
+      <div class="preserve-order-row">
+        <button id="confirm-create-playlist" class="btn-primary">
+          Start
+        </button>
+        <div>
+          <input id="preserve-order" name="preserve-order" type="checkbox" checked />
+          <label for="preserve-order">Preserve order</label>
+          <div class="preserve-order-info">Slower to process when checked.</div>
+        </div>
+      </div>
       <label style="display: block">
     <span class="current-track"></span>
     </label>
