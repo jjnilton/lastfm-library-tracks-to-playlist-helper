@@ -454,10 +454,9 @@
     <span class="current-track"></span>
     </label>
     <div style="display:flex; gap: 0.5em">
-      <progress max="${trackList.length}" value="0">
-      <span class="progress-value">0</span>%
-
-      </progress><span>(<span class="processed-tracks">0</span>/${trackList.length})</span>
+      <progress max="${trackList.length}" value="0"></progress>
+      <span><span class="progress-value">0</span>%</span>
+      <span>(<span class="processed-tracks">0</span>/${trackList.length})</span>
       </div>
     </form>
   </div>
