@@ -23,6 +23,9 @@
   // document.querySelector cannot see inside a shadow root, refs are kept instead.
   const ui = {};
 
+  // True while a run is going, so reopening the dialog keeps its state.
+  let running = false;
+
   // Page CSS cannot reach the shadow root, so we copy last.fm's own values.
   // Inherited font, size and color from <body> still cross the boundary.
   const DIALOG_CSS = /* css */`
@@ -369,6 +372,8 @@
 
   // Reset the dialog every time it opens, from whichever path opened it.
   const resetDialogState = () => {
+    // A run owns the panel while it is going: reopening must not reset it.
+    if (running) return;
     ui.panelForm.hidden = false     // show the form
     ui.panelSuccess.hidden = true   // hide the success panel
     ui.currentTrack.innerText = 'Ready to process tracks.'
@@ -509,13 +514,22 @@
 
       const preserveOrder = formData.has('preserve-order');
 
+      running = true;
       ui.currentTrack.innerText = 'Starting...'
-      doTheThing(playlistName, playlistDescription, preserveOrder);
-
       ui.form.querySelectorAll('button, input').forEach(e => {
         e.disabled = true;
       })
+      doTheThing(playlistName, playlistDescription, preserveOrder).finally(() => {
+        running = false;
+      });
     })
+
+    // A rebuild while a run is going must keep the controls disabled.
+    if (running) {
+      ui.form.querySelectorAll('button, input').forEach(e => {
+        e.disabled = true;
+      });
+    }
   }
 
   if (document.readyState === 'loading') {
