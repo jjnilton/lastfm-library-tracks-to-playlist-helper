@@ -459,9 +459,7 @@
       const playlistName = formData.get('playlist-name');
       const playlistDescription = formData.get('playlist-description');
 
-      // KNOWN BUG, left as is: FormData returns 'on' for a checked box and
-      // never `true`, so this is always false. Fix: `=== 'on'`.
-      const preserveOrder = formData.get('preserve-order') === true;
+      const preserveOrder = formData.has('preserve-order');
 
       ui.currentTrack.innerText = 'Starting...'
       doTheThing(playlistName, playlistDescription, preserveOrder);
