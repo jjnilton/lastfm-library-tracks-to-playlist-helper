@@ -46,6 +46,13 @@
       line-height: 24px;
       margin-bottom: 0.5em;
     }
+    /* One muted line under the title, explaining what the script does. */
+    .description {
+      color: #666;
+      font-size: 13px;
+      line-height: 18px;
+      margin: 0 0 0.75em;
+    }
     input[type="text"] {
       width: 100%;
       box-sizing: border-box;
@@ -434,6 +441,7 @@
 <dialog id="dialog">
     <div class="form-panel">
     <div class="title">${SCRIPT_NAME}</div>
+    <p class="description">Creates a new last.fm playlist from the tracks listed on this page.</p>
     <form id="create-playlist-form">
       <label style="display: block" for="playlist-name">
         Playlist name
