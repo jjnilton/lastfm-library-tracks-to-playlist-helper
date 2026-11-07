@@ -101,6 +101,28 @@
     }
     .btn-secondary:hover { background: #e3e3e3; }
     .btn-secondary:active { background: #d7d7d7; }
+    /* last.fm's link style, for the playlist URL. */
+    a { color: #005399; text-decoration: none; }
+    a:hover, a:focus { text-decoration: underline; }
+    /* last.fm's success alert, copied because page CSS cannot reach here. */
+    .alert { margin-top: 24px; }
+    .alert-success {
+      background-color: #e5f4ef;
+      color: #096;
+      padding: 10px 15px 10px 46px;
+      position: relative;
+      text-align: left;
+    }
+    .alert-success::before {
+      content: "";
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      width: 16px;
+      height: 16px;
+      margin-top: -8px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='none' stroke='%23096' stroke-width='2'/%3E%3Cpath d='M4.5 8.5 7 11l4.5-5.5' fill='none' stroke='%23096' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat 0 0 / 16px 16px;
+    }
     /* scoped so the trigger button in the list keeps its place */
     dialog .btn-primary,
     dialog .btn-secondary { margin: 0.5em 0; }
@@ -418,8 +440,11 @@
   </div>
       <div class="success-panel" hidden>
       <div class="title">Last.fm Playlist Helper</div>
-      <p>Success!</p>
-      <p>Playlist <strong><span class="playlist-name"></span></strong> created: <span class="playlist-url"><</span></p>
+      <div class="alert alert-success">
+        Success! Playlist <strong><span class="playlist-name"></span></strong> created.
+      </div>
+      <p>You can access your playlist in the URL below:</p>
+      <p><span class="playlist-url"></span></p>
       </div>
   <button type="button" class="btn-secondary" commandFor="dialog" command="close">
     Close
