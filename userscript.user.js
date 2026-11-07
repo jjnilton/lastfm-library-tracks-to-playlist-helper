@@ -8,14 +8,10 @@
 // @grant       none
 //
 // @author      JJ (jjlist)
-// @description
+// @description Create a Last.fm playlist from the tracks on your library page.
 // ==/UserScript==
 // Last.fm Playlist Helper
-// v1: Create Last.fm from Tracks screen
-// use shadow dom for better isolation
-// reload the script when user interact/url changes
-// Roadmap
-// Batch add songs to the playlist (playlist screen)
+// Roadmap: batch add songs from the playlist screen.
 (function () {
   "use strict";
 
