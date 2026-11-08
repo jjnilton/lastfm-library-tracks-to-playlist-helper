@@ -253,17 +253,19 @@
 
   // "/music/Artist/_/Title" becomes { artist, title }
   const getTracksFromUrlList = (urlList) => {
-    const trackList = urlList.map(i => {
+    const trackList = urlList.flatMap(i => {
       const path = i.split('/music/')[1];
-      const [, artist, track] = path.match(/^([^/]+)\/_\/([^/]+)$/);
+      const match = path?.match(/^([^/]+)\/_\/([^/]+)$/);
+      if (!match) return []; // not a track link, skip it
 
+      const [, artist, track] = match;
       const decodedArtist = decodeURIComponent(artist).replaceAll('+', ' ');
       const decodedTrack = decodeURIComponent(track).replaceAll('+', ' ');
 
-      return {
+      return [{
         artist: decodedArtist,
         title: decodedTrack
-      }
+      }]
     })
 
     return trackList
