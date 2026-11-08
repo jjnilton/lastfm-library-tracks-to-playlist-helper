@@ -353,8 +353,9 @@
   }
 
   const doTheThing = async (playlistName, playlistDescription, preserveOrder) => {
-    // try catch this
     const tracks = getTracksFromUrlList(getUrls());
+    ui.progress.max = tracks.length;
+    ui.totalTracks.innerText = tracks.length;
 
     const playlistId = await createEmptyPlaylist();
     await renamePlaylist(playlistId, playlistName, playlistDescription);
@@ -467,7 +468,7 @@
     <div style="display:flex; gap: 0.5em">
       <progress max="${trackList.length}" value="0"></progress>
       <span><span class="progress-value">0</span>%</span>
-      <span>(<span class="processed-tracks">0</span>/${trackList.length})</span>
+      <span>(<span class="processed-tracks">0</span>/<span class="total-tracks">${trackList.length}</span>)</span>
       </div>
     </form>
   </div>
@@ -497,6 +498,7 @@
     ui.progress      = $('#create-playlist-form progress')
     ui.progressValue = $('.progress-value')
     ui.processed     = $('.processed-tracks')
+    ui.totalTracks   = $('.total-tracks')
     ui.playlistName  = $('.playlist-name')
     ui.playlistUrl   = $('.playlist-url')
 
