@@ -2,7 +2,7 @@
 // @name        Last.fm Library Tracks to Playlist Helper
 // @namespace   https://github.com/jjnilton/lastfm-library-tracks-to-playlist-helper
 // @icon        data:image/x-icon;base64,AAABAAIAAAAAAAEAIAClAQAAJgAAAAAAAAABACAAeAMAAMsBAACJUE5HDQoaCgAAAA1JSERSAAAAEAAAABAIBgAAAB/z/2EAAAFsSURBVDhPzZM/SEJBGMB/L0gJAkl8GUlUJAhBONkfHFqEQpyEIHAKnJxcfIuDi5EEguDUJDQKDUFEBi02BL3aJFMKBM2MQiIKQ9AX74YHjjr1g4O7j/t+333HnXQJmxocAqsMx60EilSAV2DGCA9HSxdoxnIE/pnAFgiwmEgw6XbzUy7zpCi0CwXsu7vMKwomu5321RWP4TD9bnewhXFZZqNSoba/Tz2TYSEeZy4a5cblwqOq1JJJPs7OWDo4EPPO8/OgwLq1xcrJCUWLBa3XY8xkYr1apZHNipOZHQ7e8nmaR0f81usiWccQ6JuWj4+5lmUh0NGrWX0+7r1epnd2xJjy+bjzeESLAwLz7KyoWE+naeZy2Px+vksl3OfnRlsmm421cpmHUIj309NBgY4cDOJMpcRlfakqlUiECaeT+VgMi9cr+v4sFqlGo/Q7HZHzz97BKEiX0NDAYUSGQIIX6QK2JciN8CNbGuz9AfUIkeh5y/IPAAAAAElFTkSuQmCCiVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADP0lEQVRYR+2Xb0iTURTGn9elJM6Ws4VlqTUqluZA0MypIIiCIBom6EdBEITBcOgnQQRBEIRgIAiCIAiiYIqg6EeVkgxxMJBN/DtnykhM57+ZLs5x79u016gPzj74+3R37tl9n/ucey5cAQA+ArG7QKsAZPqAWIpdFQLg8gGTkYA5A3AJI8CLENYAtZQVHLZOgCxhDOjzAe+C883zCMAHErDtA1RSNIgIgEcYBXxB/OZv3Ai4ceD/diAsJgZxNTW4m52NyJQUHDqdOHa74e7vx3pHB463tqTTTNxJTcVjkwkRSUmI0OmwZ7Nh12rFSnMz9h0OKS+QSx2gxZKHhhCqlr8gSchsQQE8Viv/jsrJ4fyQsDB/xi8o94vBgMPlZSkmIiuAFnlts+F2QgJODw5gr67Gt5ERKCIioCkpwdOmJs45WFjAZ70ep14vUqenodTrWZCtrAxHTifUeXlI6uuDoFCwC4sNDdI3RGQF3C8tRWJ3N48X6+ux0tLinzkjzmyGtrmZxySOypHlduOWSgVXezscRqM/82ytHzs72Lfb/96B5xYLYquqeGcTGg27EEhIeDgylpa4PN+npjCTnY20mRmu/YnHwzvdGh29tO6ByApIHhhAdEEBWzyl00nxQESRxCetlg9pYk8P2y3CB3ZwEMtNTThaX5figcgK0A8PQ52bi725Oa6xHOr8fOiHhng8bzZjzWLhgxtbXY3ovDyEajT+THC3kEtyjsgKoPpT7ch6LoHXK82J0E4NLheXQU4otSG15IOKCv5NAknoRWQFPDIa8ay1lcfzJhPW2tr8M2fQ4rSbJ42NiK+r45hcHiF2B50Ja2GhFBeRFUD2vbHboVAq2QWHycRtGBoVhXvFxYivrYWtvJxbLm12ll0gl6gbNrq62JFwrZaF6jo6+NDSHHXMRWQFEJqiIug6O1mEHLRb2rXKYMCr3t5zNb/IP58BEbqIqI6q9HTeDV3Fh6urfBV/7eyE7+SE88iBh5WVUGVk8PVNlns3N+Hd2MD2+DjXn/4rxx8FBIMbATcOXL8D1/4wGQP6fcDbYLTcRfhpNgy8VAAT1/Y4JSX0PPcA731AJoAYUeEVsSEAk0rARM/znw3vdFqmQzwSAAAAAElFTkSuQmCC
-// @version     1.0.0
+// @version     1.0.1
 // @license     GPL-3.0-only
 //
 // @match       https://www.last.fm/user/*/library/tracks
@@ -315,7 +315,7 @@
     const newPlaylistName = playlistName || DEFAULT_NAME;
     const newPlaylistDescription = playlistDescription || DEFAULT_DESCRIPTION;
 
-    await fetch(`${LASTFM_PLAYLIST_URL}/${playlistId}`, {
+    const res = await fetch(`${LASTFM_PLAYLIST_URL}/${playlistId}`, {
       "credentials": "include",
       "headers": {
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -333,6 +333,10 @@
       "method": "POST",
     });
 
+    if (!res.ok) {
+      throw new Error(`Could not rename the playlist (HTTP ${res.status}).`);
+    }
+
     // playlist name for the success panel
     ui.playlistName.innerText = newPlaylistName
   }
@@ -340,7 +344,7 @@
   const addTrackToPlaylist = async (playlistId, trackObj) => {
     const csrfMiddlewareToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-    await fetch(`${LASTFM_PLAYLIST_URL}/${playlistId}/entries`, {
+    const res = await fetch(`${LASTFM_PLAYLIST_URL}/${playlistId}/entries`, {
       "credentials": "include",
       "headers": {
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -355,6 +359,11 @@
       }),
       "method": "POST",
     });
+
+    // stop the run instead of counting a rejected add as success
+    if (!res.ok) {
+      throw new Error(`Could not add "${trackObj.artist} - ${trackObj.title}" to the playlist (HTTP ${res.status}).`);
+    }
   }
 
   const doTheThing = async (playlistName, playlistDescription, preserveOrder) => {
