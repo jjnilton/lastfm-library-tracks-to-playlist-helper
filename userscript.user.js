@@ -273,9 +273,7 @@
     return trackList
   }
 
-  const createEmptyPlaylist = async () => {
-    const csrfMiddlewareToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
+  const createEmptyPlaylist = async (csrfMiddlewareToken) => {
     const res = await fetch(LASTFM_PLAYLIST_URL, {
       "credentials": "include",
       "headers": {
@@ -309,9 +307,7 @@
   // same as @name for the dialog title
   const SCRIPT_NAME = 'Last.fm Library Tracks to Playlist Helper';
 
-  const renamePlaylist = async (playlistId, playlistName, playlistDescription) => {
-    const csrfMiddlewareToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
+  const renamePlaylist = async (playlistId, playlistName, playlistDescription, csrfMiddlewareToken) => {
     const newPlaylistName = playlistName || DEFAULT_NAME;
     const newPlaylistDescription = playlistDescription || DEFAULT_DESCRIPTION;
 
@@ -341,9 +337,7 @@
     ui.playlistName.innerText = newPlaylistName
   }
 
-  const addTrackToPlaylist = async (playlistId, trackObj) => {
-    const csrfMiddlewareToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
+  const addTrackToPlaylist = async (playlistId, trackObj, csrfMiddlewareToken) => {
     const res = await fetch(`${LASTFM_PLAYLIST_URL}/${playlistId}/entries`, {
       "credentials": "include",
       "headers": {
@@ -375,15 +369,17 @@
       throw new Error('No tracks were found on this page.');
     }
 
+    const csrfMiddlewareToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
     ui.progress.max = tracks.length;
     ui.totalTracks.innerText = tracks.length;
 
-    const playlistId = await createEmptyPlaylist();
-    await renamePlaylist(playlistId, playlistName, playlistDescription);
+    const playlistId = await createEmptyPlaylist(csrfMiddlewareToken);
+    await renamePlaylist(playlistId, playlistName, playlistDescription, csrfMiddlewareToken);
 
     let processedTracks = 0;
     for (const track of tracks) {
-      await addTrackToPlaylist(playlistId, track)
+      await addTrackToPlaylist(playlistId, track, csrfMiddlewareToken)
       if (preserveOrder) { // TODO: progress is messed up when false
         await new Promise(resolve => setTimeout(resolve, 100)) 
       }
