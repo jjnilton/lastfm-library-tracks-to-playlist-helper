@@ -380,8 +380,9 @@
     let processedTracks = 0;
     for (const track of tracks) {
       await addTrackToPlaylist(playlistId, track, csrfMiddlewareToken)
-      if (preserveOrder) { // TODO: progress is messed up when false
-        await new Promise(resolve => setTimeout(resolve, 100)) 
+      if (preserveOrder) {
+        // delay to keep order
+        await new Promise(resolve => setTimeout(resolve, 100))
       }
       processedTracks += 1;
 
