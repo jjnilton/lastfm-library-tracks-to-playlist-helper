@@ -537,6 +537,7 @@
     // a click reaches document retargeted to the host
     ui.form.addEventListener('submit', (event) => {
       event.preventDefault(); // stop the page reloading
+      if (running) return;    // a second submit must not start another run
 
       const formData = new FormData(ui.form)
 
