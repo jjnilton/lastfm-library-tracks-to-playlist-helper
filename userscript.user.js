@@ -400,9 +400,8 @@
   }
 
   // reset the dialog on every open
-  const resetDialogState = () => {
-    // a run owns the panel so reopening must not reset it
-    if (running) return;
+  const resetDialogState = (force = false) => {
+    if (running && !force) return;
     ui.panelForm.hidden = false     // show the form
     ui.panelSuccess.hidden = true   // hide the success panel
     ui.currentTrack.innerText = 'Ready to process tracks.'
@@ -553,9 +552,7 @@
       })
       doTheThing(playlistName, playlistDescription, preserveOrder)
         .catch(() => {
-          // failed before the end so reset for a retry
-          running = false;
-          resetDialogState();
+          resetDialogState(true);
         })
         .finally(() => {
           running = false;
